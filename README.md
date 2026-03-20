@@ -1,47 +1,53 @@
 # ai-report-generator
 
-调用大模型 API 自动生成数据质量分析报告，输出结构化 JSON，支持下游代码直接取字段。
+从数据清洗到 AI 分析的完整工程链路：自动清洗真实数据集，生成结构化质量分析报告。
 
 ## 技术栈
 
-Python / 通义千问 API / Claude API / OpenAI 兼容接口 / json
+Python / 通义千问 API / Claude API / OpenAI 兼容接口 / pandas / json
 
-## 功能
+## 工程链路
+```
+telco_cleaner.py          →        telco_ai_analysis.py
+处理7043行真实数据                  喂给大模型分析
+发现3类脏数据问题                   输出结构化JSON报告
+生成清洗报告                        质量分数70分，中风险
+```
 
-- system prompt 三层结构设计：角色定义 + 输出格式约束 + 评判标准
-- 评判标准：缺失率 >5% 列入 issues，重复率 >1% 列入 issues，每项扣 10 分
-- 实现 `safe_json_parse()` 防御性解析函数，处理模型偶发的 ```json 包裹
-- temperature=0 保证每次输出格式一致，支持字段名直接取值
+## 真实数据处理结果
+
+使用 Kaggle Telco Customer Churn 数据集（7,043 行，21 列）：
+
+| 指标 | 结果 |
+|------|------|
+| 原始行数 | 7,043 行 |
+| 发现问题类型 | 3 类 |
+| 数据可用率 | 100% |
+| AI 质量评分 | 70 / 100 |
+| 风险等级 | 中风险 |
+| 可上线 | 否 |
+
+## 核心功能
+
+- system prompt 三层结构：角色定义 + 输出格式约束 + 评判标准（隐蔽空值扣15分、类型错误扣10分、字符串污染扣5分）
+- `safe_json_parse()` 防御性解析，处理模型偶发的 ```json 包裹
+- temperature=0 保证每次输出格式一致
+- 支持字段名直接取值：`result['quality_score']`
 
 ## 输出示例
 ```json
 {
-  "quality_score": 82,
-  "issues": ["缺失率超过5%", "重复率超过1%"],
-  "recommendations": ["处理缺失值，如填充或删除", "消除重复数据"],
+  "quality_score": 70,
+  "risk_level": "中风险",
+  "issues_summary": ["TotalCharges字段类型错误", "含11行隐蔽空值"],
+  "recommendations": ["转换字段类型", "清理空格伪装空值"],
   "is_production_ready": false
 }
-```
-
-## 项目结构
-```
-ai_report/
-├── ai_report.py          # 主程序，调用 API 生成报告
-├── safe_json_parse.py    # 防御性 JSON 解析函数
-├── prompt_engine.py      # 多场景 Prompt 模板管理类
-├── data/
-│   └── users_normal.csv
-└── output/
-    └── ai_report.txt
 ```
 
 ## 快速开始
 ```bash
 pip install openai pandas
-# 配置你的 API key
-python ai_report.py
+python telco_cleaner.py      # 第一步：清洗数据
+python telco_ai_analysis.py  # 第二步：AI 分析
 ```
-
-## 核心亮点
-
-`safe_json_parse()` 处理三种模型输出格式：干净 JSON、带 ```json 包裹、带空格换行，生产环境不崩溃。
