@@ -4,7 +4,7 @@
 
 ## 技术栈
 
-Python / 通义千问 API / Claude API / OpenAI 兼容接口 / pandas / json
+Python / 通义千问API / json
 
 ## 工程链路
 ```
